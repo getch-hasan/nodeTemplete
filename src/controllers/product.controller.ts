@@ -1,7 +1,7 @@
-import { message } from './../../node_modules/aws-sdk/clients/customerprofiles.d';
+import { message } from "./../../node_modules/aws-sdk/clients/customerprofiles.d";
 import { Request, Response } from "express";
 import Product from "../models/product.model"; // ✅ Ensure correct import
-import cloudinary from '../config/env';
+import cloudinary from "../config/env";
 
 // create Product
 export const createProduct = async (req: Request, res: Response) => {
@@ -9,17 +9,29 @@ export const createProduct = async (req: Request, res: Response) => {
     const { name, price, description, category } = req.body;
 
     if (!name || !price || !description || !category) {
-       res.status(400).json({ error: "All fields are required" });
-       return
+      res.status(400).json({ error: "All fields are required" });
+      return;
     }
 
-     // Get uploaded images from Multer
-     const thumb = req.files && (req.files as any).thumb ? (req.files as any).thumb[0].path : null;
-     const gallary = req.files && (req.files as any).gallary ? (req.files as any).gallary.map((file: any) => file.path) : [];
- 
+    // Get uploaded images from Multer
+    const thumb =
+      req.files && (req.files as any).thumb
+        ? (req.files as any).thumb[0].path
+        : null;
+    const gallary =
+      req.files && (req.files as any).gallary
+        ? (req.files as any).gallary.map((file: any) => file.path)
+        : [];
 
     // ✅ Save Product to MongoDB
-    const newProduct = new Product({ name, price, description, category, thumb, gallary });
+    const newProduct = new Product({
+      name,
+      price,
+      description,
+      category,
+      thumb,
+      gallary,
+    });
     await newProduct.save();
 
     res.status(201).json({
@@ -42,7 +54,12 @@ export const getProducts = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Error fetching products:", error);
-    res.status(500).json({ message: "Products fetch failed",  details: (error as Error).message  });
+    res
+      .status(500)
+      .json({
+        message: "Products fetch failed",
+        details: (error as Error).message,
+      });
   }
 };
 
@@ -69,15 +86,15 @@ export const updateProduct = async (req: Request, res: Response) => {
     const { name, price, description, category } = req.body;
 
     if (!id) {
-       res.status(400).json({ error: "Product ID is required" });
-       return
+      res.status(400).json({ error: "Product ID is required" });
+      return;
     }
 
     // Find the existing product
     const product = await Product.findById(id);
     if (!product) {
-       res.status(404).json({ error: "Product not found" });
-       return
+      res.status(404).json({ error: "Product not found" });
+      return;
     }
 
     // Handle new image uploads
@@ -86,7 +103,7 @@ export const updateProduct = async (req: Request, res: Response) => {
 
     if (req.files) {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      
+
       console.log("Received files:", files);
 
       // Handle thumbnail update
@@ -115,23 +132,38 @@ export const updateProduct = async (req: Request, res: Response) => {
     // Update product
     const updatedProduct = await Product.findByIdAndUpdate(
       id,
-      { name, price, description, category, thumb: updatedThumb, gallary: updatedGallery },
+      {
+        name,
+        price,
+        description,
+        category,
+        thumb: updatedThumb,
+        gallary: updatedGallery,
+      },
       { new: true, runValidators: true }
     );
 
     if (!updatedProduct) {
-       res.status(500).json({ error: "Failed to update product" });
-       return
+      res.status(500).json({ error: "Failed to update product" });
+      return;
     }
 
-    res.status(200).json({ message: "Product updated successfully", product: updatedProduct });
+    res
+      .status(200)
+      .json({
+        message: "Product updated successfully",
+        product: updatedProduct,
+      });
   } catch (error) {
     console.error("Error updating product:", error);
-    res.status(500).json({ error: "Error updating product", details: (error as Error).message });
+    res
+      .status(500)
+      .json({
+        error: "Error updating product",
+        details: (error as Error).message,
+      });
   }
 };
-
-
 
 // get single product
 export const getProductById = async (req: Request, res: Response) => {
@@ -142,13 +174,44 @@ export const getProductById = async (req: Request, res: Response) => {
     const product = await Product.findById(id);
 
     if (!product) {
-       res.status(404).json({ error: "Product not found" });
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+
+    res.status(200).json({ message: "Product fetch successfully", product });
+  } catch (error) {
+    console.error("Error fetching product:", error);
+    res
+      .status(500)
+      .json({ error: "Internal Server Error", details: error.message });
+  }
+};
+
+export const searchProduct = async (req: Request, res: Response) => {
+  try {
+    const { name } = req.body; // Get the 'name' parameter from query params
+    if (!name) {
+       res.status(400).json({ message: "Search term is required" });
        return
     }
 
-    res.status(200).json({ message:"Product fetch successfully", product });
+    // Query to search products by name (case-insensitive)
+    const products = await Product.find({
+      $or: [
+        { name: { $regex: name, $options: "i" } }, // Search by name (case-insensitive)
+      ],
+    });
+
+    // If no products are found
+    if (products.length === 0) {
+       res.status(404).json({ message: "Product Not Found" });
+       return
+    }
+
+    // Return found products
+    res.status(200).json({ message: "Product fetched successfully", products });
   } catch (error) {
-    console.error("Error fetching product:", error);
-    res.status(500).json({ error: "Internal Server Error", details: error.message });
+    console.error("Error fetching products:", error);
+    res.status(500).json({ message: "Internal Server Error", details: error.message });
   }
 };
