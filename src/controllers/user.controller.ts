@@ -42,18 +42,18 @@ export const logIn = async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email }).select("+password");
-    console.log("hash",user.password)
-    console.log("haentered pass",password)
+    console.log("hash", user.password);
+    console.log("haentered pass", password);
     if (!user) {
-       res.status(400).json({ message: "Invalid email" });
-       return
+      res.status(400).json({ message: "Invalid email" });
+      return;
     }
 
     const isMatch = await user.comparePassword(password);
-    console.log(isMatch)
+    console.log(isMatch);
     if (!isMatch) {
-       res.status(400).json({ message: "Invalid password" });
-       return
+      res.status(400).json({ message: "Invalid password" });
+      return;
     }
 
     const accessToken = generateAccessToken(user._id.toString());
@@ -71,6 +71,62 @@ export const logIn = async (req: Request, res: Response) => {
   }
 };
 
+export const forgotPassword = async (
+  req: Request,
+  res: Response
+) => {
+  const { email } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    console.log(user)
+    if (!user)
+  {
+    res.status(404).json({ message: "User not found" });
+    return
+  } 
+    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+    const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+
+    user.resetPasswordOTP = otp;
+    user.resetPasswordExpires = expires;
+    await user.save();
+
+    // TODO: Send OTP via email. For now, just return it
+    res.status(200).json({ message: "OTP sent", otp }); // ⚠️ Don't return OTP in production
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  const { email, otp, newPassword } = req.body;
+
+  try {
+    const user = await User.findOne({ email }).select("+password");
+
+    if (
+      !user ||
+      user.resetPasswordOTP !== otp ||
+      !user.resetPasswordExpires ||
+      user.resetPasswordExpires < new Date()
+    ) {
+      res.status(400).json({ message: "Invalid or expired OTP" });
+      return;
+    }
+
+    user.password = newPassword; // Raw password, will be hashed by pre-save
+    user.resetPasswordOTP = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.status(200).json({ message: "Password reset successful" });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
 // ✅ Get All Users
 export const getUsers = async (req: Request, res: Response) => {
