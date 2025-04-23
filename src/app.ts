@@ -5,6 +5,7 @@ import userRoutes from "./routes/user.routes";
 import productRoutes from "./routes/product.routes";
 import multer from "multer";
 import protectedRoutes from "./routes/protectet.route";
+import categoryRoutes from "./routes/category.route";
 
 
 dotenv.config();
@@ -18,4 +19,5 @@ app.use(cors());
 app.use("/api/users", userRoutes);
 app.use("/api/protected", protectedRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/category", categoryRoutes);
 export default app;

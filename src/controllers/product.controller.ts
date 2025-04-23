@@ -4,13 +4,14 @@ import Product from "../models/product.model"; // ✅ Ensure correct import
 import cloudinary from "../config/env";
 
 // create Product
+
 export const createProduct = async (req: Request, res: Response) => {
   try {
     const { name, price, description, category } = req.body;
 
     if (!name || !price || !description || !category) {
-      res.status(400).json({ error: "All fields are required" });
-      return;
+       res.status(400).json({ error: "All fields are required" });
+       return
     }
 
     // Get uploaded images from Multer
@@ -23,20 +24,25 @@ export const createProduct = async (req: Request, res: Response) => {
         ? (req.files as any).gallary.map((file: any) => file.path)
         : [];
 
-    // ✅ Save Product to MongoDB
+    // Save the product to MongoDB
     const newProduct = new Product({
       name,
       price,
       description,
       category,
       thumb,
-      gallary,
+      gallary
     });
+
+    // Save the product
     await newProduct.save();
+
+    // Populate category to include category details
+    const populatedProduct = await Product.findById(newProduct._id).populate('category');
 
     res.status(201).json({
       message: "Product created successfully",
-      product: newProduct,
+      product: populatedProduct,  // Return the populated product
     });
   } catch (error) {
     console.error("Error creating product:", error);
@@ -44,10 +50,12 @@ export const createProduct = async (req: Request, res: Response) => {
   }
 };
 
+
 // get all product
 export const getProducts = async (req: Request, res: Response) => {
   try {
-    const products = await Product.find();
+    
+    const products = await Product.find().populate('category');
     res.status(200).json({
       message: "Products fetched successfully",
       products,
